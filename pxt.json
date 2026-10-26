@@ -1,0 +1,22 @@
+{
+    "name": "ai-teaching-blocks",
+    "version": "0.1.0",
+    "description": "國小 AI 教學擴展積木：迷宮 Q-learning（強化學習）、8x8 圖形分類、決策樹（監督式學習），全程離線、在裝置端運算",
+    "dependencies": {
+        "device": "*"
+    },
+    "files": [
+        "README.md",
+        "maze-ai.ts",
+        "shape-ai.ts",
+        "tree-ai.ts"
+    ],
+    "testFiles": [
+        "mango-game.ts",
+        "test.ts"
+    ],
+    "supportedTargets": [
+        "arcade"
+    ],
+    "public": true
+}
