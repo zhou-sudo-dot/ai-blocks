@@ -1,4 +1,4 @@
-# AI 擴展積木（MakeCode Arcade）
+# AI 擴展積木
 
 給 WiFiBoy Arcade / OK:D51 使用的離線AI積木。
 
