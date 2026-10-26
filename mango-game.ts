@@ -22,6 +22,7 @@ namespace SpriteKind {
     export const Helper = SpriteKind.create()
 }
 
+//% weight=70 color=#F39C12 icon="\uf1fd" block="芒果遊戲"
 namespace mangoGame {
     const LABEL_COLOR = [7, 5, 2]          // A 綠、B 黃、C 紅
     const LETTERS = ["A", "B", "C"]
@@ -365,6 +366,8 @@ namespace mangoGame {
     }
 
     // ---------- 主流程 ----------
+    //% block="開始「芒果小學徒」遊戲"
+    //% weight=100
     export function start() {
         treeAI.reset()
         treeAI.setFeatureName(1, "SIZE", "S", "L")
