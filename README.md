@@ -12,10 +12,9 @@
 
 ## 安裝
 
-1. 把整個資料夾上傳到 GitHub 公開儲存庫。
-2. 在 MakeCode Arcade 工具箱按「擴展」，貼上儲存庫網址，會出現「迷宮 AI」「圖形 AI」「決策樹 AI」三組積木。
-3. 想直接玩遊戲：用「匯入 → 匯入網址」打開這個儲存庫本身，`test.ts` 預設 `DEMO = 3` 會啟動芒果遊戲。
-4. 想在自己的專案用遊戲：新增專案 → 加入擴展 → 切到 JavaScript，把 `mango-game.ts` 全部貼進 main.ts，最後一行寫 `mangoGame.start()`。
+1. 在 MakeCode Arcade 工具箱按「擴展」，貼上儲存庫網址，會出現「迷宮 AI」「圖形 AI」「決策樹 AI」三組積木。
+2. 想直接玩遊戲：用「匯入 → 匯入網址」打開這個儲存庫本身，`test.ts` 預設 `DEMO = 3` 會啟動芒果遊戲。
+3. 想在自己的專案用遊戲：新增專案 → 加入擴展 → 切到 JavaScript，把 `mango-game.ts` 全部貼進 main.ts，最後一行寫 `mangoGame.start()`。
 
 ## 遊戲：芒果小學徒
 
