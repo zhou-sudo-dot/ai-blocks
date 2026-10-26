@@ -2,10 +2,10 @@
 
 給 WiFiBoy Arcade / OK:D51 使用的離線 AI 教學積木。不改教具、不改平台、不需網路。
 
-| 檔案 | 內容 | 建議用途 |
+| 檔案 | 內容 
 |---|---|---|
-| maze-ai.ts | 迷宮 AI（強化學習 Q-learning） | 第一年 |
-| shape-ai.ts | 圖形 AI（8×8 畫圖分類，最近中心法） | 第二年 |
+| maze-ai.ts | 迷宮 AI（強化學習 Q-learning）
+| shape-ai.ts | 圖形 AI（8×8 畫圖分類，最近中心法） 
 | tree-ai.ts | 決策樹 AI（監督式學習） | 對應課本第四章，可做為第二年或暖身 |
 | mango-game.ts | 遊戲「芒果小學徒 MANGO AI」（用 tree-ai 積木製作） | 課堂主打遊戲，也是範例 |
 | test.ts | 擴展專案內的示範，`DEMO` = 1、2、3 切換 | 開發測試 |
