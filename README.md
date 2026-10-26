@@ -2,13 +2,13 @@
 
 給 WiFiBoy Arcade / OK:D51 使用的離線 AI 教學積木。不改教具、不改平台、不需網路。
 
-| 檔案 | 內容 |  |
-|---|---|---|
-| maze-ai.ts | 迷宮 AI（強化學習 Q-learning） | |
-| shape-ai.ts | 圖形 AI（8×8 畫圖分類，最近中心法） | |
-| tree-ai.ts | 決策樹 AI（監督式學習） |  |
-| mango-game.ts | 遊戲「芒果小學徒 MANGO AI」（用 tree-ai 積木製作） | 課堂主打遊戲，也是範例 |
-| test.ts | 擴展專案內的示範，`DEMO` = 1、2、3 切換 | 開發測試 |
+| 檔案 | 內容 |
+|---|---|
+| maze-ai.ts | 迷宮 AI（強化學習 Q-learning） |
+| shape-ai.ts | 圖形 AI（8×8 畫圖分類，最近中心法） |
+| tree-ai.ts | 決策樹 AI（監督式學習） |
+| mango-game.ts | 遊戲「芒果小學徒 MANGO AI」（用 tree-ai 積木製作） |
+| test.ts | 擴展專案內的示範，`DEMO` = 1、2、3 切換 |
 
 ## 安裝
 
@@ -17,7 +17,7 @@
 3. 想直接玩遊戲：用「匯入 → 匯入網址」打開這個儲存庫本身，`test.ts` 預設 `DEMO = 3` 會啟動芒果遊戲。
 4. 想在自己的專案用遊戲：新增專案 → 加入擴展 → 切到 JavaScript，把 `mango-game.ts` 全部貼進 main.ts，最後一行寫 `mangoGame.start()`。
 
-## 遊戲：芒果小學徒（對應課本 4-2 監督式學習、4-3 決策樹）
+## 遊戲：芒果小學徒
 
 故事：爺爺有一套「祕密規則」分愛文芒果，你要把規則教給機器人 AI 學徒，再當品管員檢查它。
 
