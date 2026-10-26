@@ -1,6 +1,6 @@
-# AI 教學擴展積木（MakeCode Arcade）
+# AI 擴展積木（MakeCode Arcade）
 
-給 WiFiBoy Arcade / OK:D51 使用的離線 AI 教學積木。不改教具、不改平台、不需網路。
+給 WiFiBoy Arcade / OK:D51 使用的離線AI積木。
 
 | 檔案 | 內容 |
 |---|---|
