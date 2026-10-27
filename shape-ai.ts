@@ -165,6 +165,13 @@ namespace shapeAI {
         clearBoard()
     }
 
+    // 供自我檢測使用：用文字直接設定畫板（8 行，每行 8 個 0 或 1）
+    //% blockHidden=true
+    export function setDrawing(rows: string[]) {
+        drawing = pat(rows)
+        hasDrawing = true
+    }
+
     //% block="顯示剛畫的圖"
     //% group="1 畫圖" weight=80
     export function showDrawing() {
