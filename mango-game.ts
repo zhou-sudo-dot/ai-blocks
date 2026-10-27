@@ -1,4 +1,266 @@
 // ============================================================
+// 芒果小學徒 MANGO AI —— 完整單檔版（決策樹 AI + 遊戲）
+// 使用方式：MakeCode Arcade 新增專案 → 切到 JavaScript → 刪掉原本內容 → 整份貼上 → 執行
+// 不需要安裝任何擴展。請留在 JavaScript 模式（切到積木會變成灰色方塊）。
+// 玩法：標題畫面 A＝單人、B＝雙人輪流；教學（← A ↑ B → C，↓ 結束）→ AI 長出決策樹 → AI 上工你當品管員（按 A 喊停）。
+// 注意：畫面文字只能顯示英文與數字。
+// ============================================================
+
+// ============================================================
+// 決策樹 AI（監督式學習）
+// 對應《和 AI 做朋友》第四章「教電腦聰明學習」：
+//   有「標準答案」的範例 → 機器自己長出一棵決策樹 → 用樹判斷新資料。
+//
+// 設計：3 個特徵，每個特徵只有 0 或 1 兩種值（例如：大／小、紅／黃、有斑點／沒斑點），
+//       答案（標籤）有 3 種：0、1、2（例如：A、B、C 級）。
+// 演算法：每一步挑「分完之後最不混亂」的特徵（以吉尼不純度計算，不需要 log）。
+// 全程離線，記憶體用量極小。
+// 注意：遊戲機內建字型只能顯示英文與數字，名稱請用英文縮寫。
+// ============================================================
+
+namespace treeAI {
+    const NF = 3
+    const LABELS = 3
+
+    let exF: number[] = []      // 範例特徵（每筆連續放 NF 個）
+    let exY: number[] = []      // 範例答案
+    let nodeFeat: number[] = [] // 內部節點用哪個特徵；-1 代表葉節點
+    let nodeLeaf: number[] = [] // 葉節點的答案
+    let nodeC0: number[] = []   // 特徵值 0 的子節點
+    let nodeC1: number[] = []   // 特徵值 1 的子節點
+    let trained = false
+
+    let featName: string[] = ["F1", "F2", "F3"]
+    let v0Name: string[] = ["0", "0", "0"]
+    let v1Name: string[] = ["1", "1", "1"]
+    let labelName: string[] = ["A", "B", "C"]
+    const LABEL_COLOR = [7, 5, 2]
+
+    // ---------------- 學習（建樹） ----------------
+
+    function gini(ids: number[]): number {
+        const n = ids.length
+        if (n == 0) return 0
+        const cnt = [0, 0, 0]
+        for (let k = 0; k < n; k++) cnt[exY[ids[k]]]++
+        let sumSq = 0
+        for (let c = 0; c < LABELS; c++) sumSq += cnt[c] * cnt[c]
+        return 1 - sumSq / (n * n)
+    }
+
+    function majority(ids: number[], fallback: number): number {
+        if (ids.length == 0) return fallback
+        const cnt = [0, 0, 0]
+        for (let k = 0; k < ids.length; k++) cnt[exY[ids[k]]]++
+        let best = 0
+        for (let c = 1; c < LABELS; c++) {
+            if (cnt[c] > cnt[best]) best = c
+        }
+        return best
+    }
+
+    function build(ids: number[], used: number[], fallback: number): number {
+        const node = nodeFeat.length
+        nodeFeat.push(-1)
+        nodeLeaf.push(0)
+        nodeC0.push(-1)
+        nodeC1.push(-1)
+        const maj = majority(ids, fallback)
+        nodeLeaf[node] = maj
+        if (ids.length == 0 || gini(ids) == 0) return node   // 已經很純，不用再分
+
+        let bestF = -1
+        let bestScore = 1000
+        for (let f = 0; f < NF; f++) {
+            if (used[f] == 1) continue
+            const a: number[] = []
+            const b: number[] = []
+            for (let k = 0; k < ids.length; k++) {
+                if (exF[ids[k] * NF + f] == 1) b.push(ids[k])
+                else a.push(ids[k])
+            }
+            if (a.length == 0 || b.length == 0) continue      // 這個特徵分不開
+            const score = (a.length * gini(a) + b.length * gini(b)) / ids.length
+            if (score < bestScore - 0.000001) {
+                bestScore = score
+                bestF = f
+            }
+        }
+        if (bestF < 0) return node                             // 沒有特徵可用了
+
+        const used2 = [used[0], used[1], used[2]]
+        used2[bestF] = 1
+        const left: number[] = []
+        const right: number[] = []
+        for (let k = 0; k < ids.length; k++) {
+            if (exF[ids[k] * NF + bestF] == 1) right.push(ids[k])
+            else left.push(ids[k])
+        }
+        const c0 = build(left, used2, maj)
+        const c1 = build(right, used2, maj)
+        nodeFeat[node] = bestF
+        nodeC0[node] = c0
+        nodeC1[node] = c1
+        return node
+    }
+
+    // ---------------- 1 準備 ----------------
+
+    export function reset() {
+        exF = []
+        exY = []
+        nodeFeat = []
+        nodeLeaf = []
+        nodeC0 = []
+        nodeC1 = []
+        trained = false
+    }
+
+    export function setFeatureName(index: number, name: string, v0: string, v1: string) {
+        if (index < 1 || index > NF) return
+        featName[index - 1] = name
+        v0Name[index - 1] = v0
+        v1Name[index - 1] = v1
+    }
+
+    export function setLabelName(index: number, name: string) {
+        if (index < 0 || index >= LABELS) return
+        labelName[index] = name
+    }
+
+    // ---------------- 2 教 AI ----------------
+
+    export function addExample(f1: number, f2: number, f3: number, label: number) {
+        exF.push(f1 >= 1 ? 1 : 0)
+        exF.push(f2 >= 1 ? 1 : 0)
+        exF.push(f3 >= 1 ? 1 : 0)
+        exY.push(Math.max(0, Math.min(LABELS - 1, label)))
+        trained = false
+    }
+
+    export function train() {
+        nodeFeat = []
+        nodeLeaf = []
+        nodeC0 = []
+        nodeC1 = []
+        const ids: number[] = []
+        for (let i = 0; i < exY.length; i++) ids.push(i)
+        build(ids, [0, 0, 0], 0)
+        trained = true
+    }
+
+    export function exampleCount(): number {
+        return exY.length
+    }
+
+    // ---------------- 3 AI 判斷 ----------------
+
+    export function predict(f1: number, f2: number, f3: number): number {
+        if (!trained) train()
+        const f = [f1 >= 1 ? 1 : 0, f2 >= 1 ? 1 : 0, f3 >= 1 ? 1 : 0]
+        let n = 0
+        while (nodeFeat[n] >= 0) {
+            n = f[nodeFeat[n]] == 1 ? nodeC1[n] : nodeC0[n]
+        }
+        return nodeLeaf[n]
+    }
+
+    export function labelText(label: number): string {
+        if (label < 0 || label >= LABELS) return "?"
+        return labelName[label]
+    }
+
+    // ---------------- 4 看決策樹 ----------------
+
+    let lx: number[] = []
+    let ld: number[] = []
+    let leafCursor = 0
+    let leafTotal = 1
+
+    function countLeaves(n: number): number {
+        if (nodeFeat[n] < 0) return 1
+        return countLeaves(nodeC0[n]) + countLeaves(nodeC1[n])
+    }
+
+    function layout(n: number, depth: number) {
+        ld[n] = depth
+        if (nodeFeat[n] < 0) {
+            lx[n] = Math.idiv((2 * leafCursor + 1) * 160, 2 * leafTotal)
+            leafCursor++
+            return
+        }
+        layout(nodeC0[n], depth + 1)
+        layout(nodeC1[n], depth + 1)
+        lx[n] = Math.idiv(lx[nodeC0[n]] + lx[nodeC1[n]], 2)
+    }
+
+    function nodeY(n: number): number {
+        return 16 + ld[n] * 28
+    }
+
+    function drawEdges(img: Image, n: number) {
+        if (nodeFeat[n] < 0) return
+        const x = lx[n]
+        const y = nodeY(n)
+        for (let side = 0; side < 2; side++) {
+            const c = side == 0 ? nodeC0[n] : nodeC1[n]
+            const cx = lx[c]
+            const cy = nodeY(c)
+            img.drawLine(x, y + 6, cx, cy - 6, 1)
+            const name = side == 0 ? v0Name[nodeFeat[n]] : v1Name[nodeFeat[n]]
+            const mx = Math.idiv(x + cx, 2)
+            const my = Math.idiv(y + cy, 2)
+            const tx = side == 0 ? mx - name.length * 6 - 1 : mx + 2
+            img.print(name, tx, my - 4, 5)
+        }
+        drawEdges(img, nodeC0[n])
+        drawEdges(img, nodeC1[n])
+    }
+
+    function drawNodes(img: Image, n: number) {
+        const x = lx[n]
+        const y = nodeY(n)
+        if (nodeFeat[n] < 0) {
+            const lab = nodeLeaf[n]
+            img.fillRect(x - 8, y - 6, 16, 13, LABEL_COLOR[lab])
+            img.drawRect(x - 8, y - 6, 16, 13, 1)
+            img.print(labelName[lab], x - 3, y - 4, 15)
+        } else {
+            const name = featName[nodeFeat[n]]
+            const w = name.length * 6 + 4
+            const left = x - Math.idiv(w, 2)
+            img.fillRect(left, y - 6, w, 13, 8)
+            img.drawRect(left, y - 6, w, 13, 1)
+            img.print(name, left + 2, y - 4, 1)
+            drawNodes(img, nodeC0[n])
+            drawNodes(img, nodeC1[n])
+        }
+    }
+
+    export function treeImage(): Image {
+        if (!trained) train()
+        lx = []
+        ld = []
+        for (let i = 0; i < nodeFeat.length; i++) {
+            lx.push(0)
+            ld.push(0)
+        }
+        leafTotal = countLeaves(0)
+        leafCursor = 0
+        layout(0, 0)
+        const img = image.create(160, 120)
+        img.fill(15)
+        drawEdges(img, 0)
+        drawNodes(img, 0)
+        return img
+    }
+
+    export function showTree() {
+        scene.setBackgroundImage(treeImage())
+    }
+}
+
+// ============================================================
 // 芒果小學徒 MANGO AI —— 教 AI 分芒果的遊戲
 // 對應《和 AI 做朋友》：4-2 監督式學習、4-3 決策樹（愛文芒果分級）
 //
@@ -12,6 +274,9 @@
 //  【成績】看每一輪 AI 的準確率長條圖。資料越多，AI 越聰明！
 //         AI 一整輪全對就「畢業」，重新開始。
 //
+// 【雙人模式】標題畫面按 B：兩位小朋友輪流（P1、P2），每個芒果換人，
+//         各自累積分數，AI 與決策樹是兩人共同的。
+//
 // 特徵：大小（大＝重）、顏色（紅／黃）、斑點（有／無）
 // 爺爺的祕密規則（和課本一樣）：有斑點→C；沒斑點且紅且大→A；其他→B
 // 注意：遊戲機字型只能顯示英文數字，所以畫面用英文縮寫與圖示。
@@ -22,40 +287,41 @@ namespace SpriteKind {
     export const Helper = SpriteKind.create()
 }
 
-//% weight=70 color=#F39C12 icon="\uf1fd" block="芒果遊戲"
 namespace mangoGame {
-    const LABEL_COLOR = [7, 5, 2]          // A 綠、B 黃、C 紅
-    const LETTERS = ["A", "B", "C"]
-    const BIN_X = [26, 80, 134]
+    export const LABEL_COLOR = [7, 5, 2]          // A 綠、B 黃、C 紅
+    export const LETTERS = ["A", "B", "C"]
+    export const BIN_X = [26, 80, 134]
     const BIN_HINT = ["<A", "^B", "C>"]
     const MIN_EXAMPLES = 4                  // 至少教幾個才能交給 AI
     const WORK_COUNT = 8                    // 每輪檢查幾個芒果
-    const BELT_Y = 40
-    const CHUTE_X = 128
+    export const BELT_Y = 40
+    export const CHUTE_X = 128
 
     let deck: number[] = []
     let history: number[] = []
-    let score = 0
     let round = 1
+    let players = 1                 // 1 人或 2 人（輪流）
+    let turn = 0                    // 目前輪到 0=P1、1=P2
+    let pScore: number[] = [0, 0]   // 兩位玩家各自的分數
 
     // ---------- 芒果資料：code 0~7 ----------
-    function bigOf(code: number): number {
+    export function bigOf(code: number): number {
         return Math.idiv(code, 4) % 2
     }
-    function redOf(code: number): number {
+    export function redOf(code: number): number {
         return Math.idiv(code, 2) % 2
     }
-    function spotOf(code: number): number {
+    export function spotOf(code: number): number {
         return code % 2
     }
     // 爺爺的祕密規則（標準答案）：0=A 1=B 2=C
-    function truthOf(code: number): number {
+    export function truthOf(code: number): number {
         if (spotOf(code) == 1) return 2
         if (redOf(code) == 1 && bigOf(code) == 1) return 0
         return 1
     }
 
-    function refillDeck() {
+    export function refillDeck() {
         deck = []
         for (let i = 0; i < 8; i++) deck.push(i)
         for (let i = 7; i > 0; i--) {
@@ -65,13 +331,23 @@ namespace mangoGame {
             deck[j] = t
         }
     }
-    function nextCode(): number {
+    export function nextCode(): number {
         if (deck.length == 0) refillDeck()
         return deck.pop()
     }
 
+    function addScore(n: number) {
+        pScore[turn] = Math.max(0, pScore[turn] + n)
+    }
+    function tag(): string {
+        return players == 2 ? "P" + (turn + 1) + " " : ""
+    }
+    function nextTurn() {
+        if (players == 2) turn = 1 - turn
+    }
+
     // ---------- 圖像 ----------
-    function mangoImage(code: number): Image {
+    export function mangoImage(code: number): Image {
         const big = bigOf(code) == 1
         const red = redOf(code) == 1
         const spot = spotOf(code) == 1
@@ -106,7 +382,7 @@ namespace mangoGame {
         return img
     }
 
-    function bg(left: string, right: string, bins: boolean, keys: boolean, hint: string): Image {
+    export function bg(left: string, right: string, bins: boolean, keys: boolean, hint: string): Image {
         const img = image.create(160, 120)
         img.fill(9)                                   // 淺藍牆
         img.fillRect(0, 70, 160, 50, 13)              // 地板
@@ -127,7 +403,7 @@ namespace mangoGame {
     }
 
     // ---------- 小工具 ----------
-    function slideTo(m: Sprite, tx: number, ty: number, speed: number) {
+    export function slideTo(m: Sprite, tx: number, ty: number, speed: number) {
         while (true) {
             const dx = tx - m.x
             const dy = ty - m.y
@@ -140,18 +416,18 @@ namespace mangoGame {
         m.setPosition(tx, ty)
     }
 
-    function anyKey(): boolean {
+    export function anyKey(): boolean {
         return controller.left.isPressed() || controller.right.isPressed() ||
             controller.up.isPressed() || controller.down.isPressed() ||
             controller.A.isPressed() || controller.B.isPressed()
     }
 
-    function waitRelease() {
+    export function waitRelease() {
         while (anyKey()) pause(20)
     }
 
     // 0 左、1 上、2 右、3 下
-    function waitKey(): number {
+    export function waitKey(): number {
         waitRelease()
         while (true) {
             if (controller.left.isPressed()) return 0
@@ -168,6 +444,22 @@ namespace mangoGame {
         waitRelease()
     }
 
+    // 標題畫面選人數：A = 1 人，B = 2 人
+    function waitMode(): number {
+        waitRelease()
+        while (true) {
+            if (controller.A.isPressed()) {
+                waitRelease()
+                return 1
+            }
+            if (controller.B.isPressed()) {
+                waitRelease()
+                return 2
+            }
+            pause(20)
+        }
+    }
+
     // ---------- 畫面 ----------
     function titleScreen() {
         const img = image.create(160, 120)
@@ -175,7 +467,7 @@ namespace mangoGame {
         img.fillRect(0, 84, 160, 36, 13)
         img.printCenter("MANGO AI", 14, 1, image.doubledFont(image.font8))
         img.printCenter("TEACH AI TO GRADE", 38, 15)
-        img.printCenter("PRESS A", 104, 1)
+        img.printCenter("A:1 PLAYER  B:2 PLAYERS", 104, 1)
         scene.setBackgroundImage(img)
         const robot = sprites.create(robotImage(), SpriteKind.Helper)
         robot.setPosition(36, 70)
@@ -184,7 +476,7 @@ namespace mangoGame {
         const m2 = sprites.create(mangoImage(1), SpriteKind.Mango)     // 小、黃、有斑
         m2.setPosition(128, 74)
         robot.sayText("HI!")
-        waitA()
+        players = waitMode()
         sprites.destroyAllSpritesOfKind(SpriteKind.Helper)
         sprites.destroyAllSpritesOfKind(SpriteKind.Mango)
     }
@@ -200,6 +492,7 @@ namespace mangoGame {
         }
         img.print(keyText[3], 26, 64, 1)
         img.print("BIG = HEAVY", 10, 80, 1)
+        if (players == 2) img.print("2P:TURNS", 96, 80, 5)
         img.printCenter("FIND GRANDPA'S SECRET RULE!", 94, 5)
         img.printCenter("PRESS A", 108, 1)
         scene.setBackgroundImage(img)
@@ -210,7 +503,7 @@ namespace mangoGame {
     function teachPhase() {
         music.jumpUp.play()
         while (true) {
-            scene.setBackgroundImage(bg("DATA " + treeAI.exampleCount(), "R" + round, true, true, "v:DONE"))
+            scene.setBackgroundImage(bg("DATA " + treeAI.exampleCount(), "R" + round, true, true, tag() + "v:DONE"))
             const code = nextCode()
             const m = sprites.create(mangoImage(code), SpriteKind.Mango)
             m.setPosition(-20, BELT_Y)
@@ -235,7 +528,8 @@ namespace mangoGame {
             const t = truthOf(code)
             treeAI.addExample(bigOf(code), redOf(code), spotOf(code), t)
             if (key == t) {
-                m.sayText("GOOD!")
+                m.sayText("GOOD! +1")
+                addScore(1)
                 m.startEffect(effects.confetti, 400)
                 music.baDing.play()
             } else {
@@ -245,6 +539,7 @@ namespace mangoGame {
             pause(600)
             slideTo(m, BIN_X[t], 96, 170)
             m.destroy()
+            nextTurn()
         }
     }
 
@@ -280,7 +575,7 @@ namespace mangoGame {
         refillDeck()
         for (let i = 0; i < WORK_COUNT; i++) {
             if (lives <= 0) break
-            scene.setBackgroundImage(bg("CHECK " + (i + 1) + "/" + WORK_COUNT, "LIFE " + lives, true, false, "A:STOP"))
+            scene.setBackgroundImage(bg("CHECK " + (i + 1) + "/" + WORK_COUNT, "LIFE " + lives, true, false, tag() + "A:STOP"))
             const code = nextCode()
             const t = truthOf(code)
             const ai = treeAI.predict(bigOf(code), redOf(code), spotOf(code))
@@ -305,19 +600,19 @@ namespace mangoGame {
             if (ai == t) aiRight++
             if (rejected) {
                 if (ai != t) {
-                    score += 10
+                    addScore(10)
                     m.sayText("NICE CATCH!")
                     m.startEffect(effects.confetti, 500)
                     music.powerUp.play()
                 } else {
-                    score = Math.max(0, score - 5)
+                    addScore(-5)
                     m.sayText("AI WAS RIGHT")
                     music.powerDown.play()
                 }
                 pause(600)
                 slideTo(m, BIN_X[t], 96, 150)
             } else if (ai == t) {
-                score += 2
+                addScore(2)
                 music.baDing.play()
                 slideTo(m, BIN_X[ai], 96, 150)
             } else {
@@ -329,6 +624,7 @@ namespace mangoGame {
                 slideTo(m, BIN_X[ai], 96, 150)
             }
             m.destroy()
+            nextTurn()
         }
         if (processed == 0) return 0
         return Math.round(100 * aiRight / processed)
@@ -339,7 +635,7 @@ namespace mangoGame {
         const img = image.create(160, 120)
         img.fill(15)
         img.print("AI ACCURACY", 4, 4, 5)
-        const scoreText = "SCORE " + score
+        const scoreText = players == 2 ? "P1 " + pScore[0] + " P2 " + pScore[1] : "SCORE " + pScore[0]
         img.print(scoreText, 158 - scoreText.length * 6, 4, 1)
         const base = 92
         const n = history.length
@@ -366,15 +662,14 @@ namespace mangoGame {
     }
 
     // ---------- 主流程 ----------
-    //% block="開始「芒果小學徒」遊戲"
-    //% weight=100
     export function start() {
         treeAI.reset()
         treeAI.setFeatureName(1, "SIZE", "S", "L")
         treeAI.setFeatureName(2, "COLOR", "YL", "RD")
         treeAI.setFeatureName(3, "SPOT", "NO", "YES")
         history = []
-        score = 0
+        pScore = [0, 0]
+        turn = 0
         round = 1
         titleScreen()
         howToScreen()
@@ -387,7 +682,8 @@ namespace mangoGame {
             if (acc >= 100) {
                 treeAI.reset()
                 history = []
-                score = 0
+                pScore = [0, 0]
+                turn = 0
                 round = 0
             }
             round++
@@ -395,3 +691,5 @@ namespace mangoGame {
         }
     }
 }
+
+mangoGame.start()
