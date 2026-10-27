@@ -10,7 +10,8 @@
         "maze-ai.ts",
         "shape-ai.ts",
         "tree-ai.ts",
-        "mango-game.ts"
+        "mango-game.ts",
+        "mango-kit.ts"
     ],
     "testFiles": [
         "test.ts"
