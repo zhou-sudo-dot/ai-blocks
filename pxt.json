@@ -1,5 +1,5 @@
 {
-    "name": "ai-teaching-blocks",
+    "name": "ai-blocks",
     "version": "0.1.0",
     "description": "AI擴展積木：迷宮 Q-learning（強化學習）、8x8 圖形分類、決策樹（監督式學習）",
     "dependencies": {
